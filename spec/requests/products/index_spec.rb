@@ -680,5 +680,34 @@ describe "Products Page Scenario", type: :system, js: true do
 
       expect(page).to have_content(product.name)
     end
+
+    context "when archiving a published product" do
+      it "automatically unpublishes the product" do
+        product = create(:product, user: seller, draft: false, purchase_disabled_at: nil)
+        expect(product.published?).to be(true)
+
+        visit(products_path)
+        expect(page).to have_content(product.name)
+
+        within find_product_row product do
+          select_disclosure "Open product action menu" do
+            click_on "Archive"
+          end
+        end
+        wait_for_ajax
+
+        product.reload
+        expect(product.archived?).to be(true)
+        expect(product.published?).to be(false)
+        expect(product.purchase_disabled_at).to be_present
+
+        # Product should not appear in main products list
+        expect(page).not_to have_content(product.name)
+
+        # Product should appear in archived tab
+        find(:tab_button, "Archived").click
+        expect(page).to have_content(product.name)
+      end
+    end
   end
 end

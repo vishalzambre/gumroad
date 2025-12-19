@@ -71,7 +71,10 @@ class Products::ArchivedController < Sellers::BaseController
   def create
     authorize [:products, :archived, @product]
 
-    @product.update!(archived: true)
+    @product.transaction do
+      @product.update!(archived: true)
+      @product.unpublish! if @product.published?
+    end
     render json: { success: true }
   end
 
