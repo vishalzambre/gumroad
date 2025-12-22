@@ -44,7 +44,7 @@ describe Api::Internal::Helper::PurchasesController, :vcr do
 
         purchase3.reload
         expect(purchase3.email).to eq(to_email)
-        expect(purchase3.purchaser_id).to be_nil
+        expect(purchase3.purchaser_id).to eq(target_user.id)
 
         subscription_purchase.reload
         expect(subscription_purchase.email).to eq(to_email)
@@ -52,6 +52,11 @@ describe Api::Internal::Helper::PurchasesController, :vcr do
 
         subscription.reload
         expect(subscription.user).to eq(target_user)
+
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(purchase1.id)
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(purchase2.id)
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(purchase3.id)
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(subscription_purchase.id)
       end
 
       it "updates original_purchase email for subscription purchases" do
@@ -72,6 +77,8 @@ describe Api::Internal::Helper::PurchasesController, :vcr do
 
         subscription.reload
         expect(subscription.original_purchase.email).to eq(to_email)
+
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(recurring_purchase.id)
       end
 
       it "updates the original purchase once only when there are multiple recurring purchases sharing the same original purchase" do
@@ -80,9 +87,9 @@ describe Api::Internal::Helper::PurchasesController, :vcr do
         subscription = create(:subscription, user: buyer)
         create(:purchase, email: "old_original_purchase@example.com", purchaser: buyer, is_original_subscription_purchase: true, subscription: subscription)
 
-        create(:purchase, email: from_email, purchaser: buyer, subscription: subscription)
-        create(:purchase, email: from_email, purchaser: buyer, subscription: subscription)
-        create(:purchase, email: from_email, purchaser: buyer, subscription: subscription)
+        recurring1 = create(:purchase, email: from_email, purchaser: buyer, subscription: subscription)
+        recurring2 = create(:purchase, email: from_email, purchaser: buyer, subscription: subscription)
+        recurring3 = create(:purchase, email: from_email, purchaser: buyer, subscription: subscription)
 
         post :reassign_purchases, params: { from: from_email, to: to_email }
 
@@ -90,6 +97,10 @@ describe Api::Internal::Helper::PurchasesController, :vcr do
         expect(response.parsed_body["success"]).to eq(true)
 
         expect(response.parsed_body["count"]).to eq(4)
+
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(recurring1.id)
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(recurring2.id)
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(recurring3.id)
       end
 
       it "reassigns purchases and sets purchaser_id to nil when target user doesn't exist" do
@@ -124,6 +135,11 @@ describe Api::Internal::Helper::PurchasesController, :vcr do
 
         subscription.reload
         expect(subscription.user).to be_nil
+
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(purchase1.id)
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(purchase2.id)
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(purchase3.id)
+        expect(SendPurchaseReceiptJob).to have_enqueued_sidekiq_job(subscription_purchase.id)
       end
     end
 
