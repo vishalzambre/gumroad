@@ -577,6 +577,22 @@ const DiscountsPage = ({
                   )}
                 </div>
               ) : null}
+              {selectedOfferCode.required_product_id ? (
+                <div>
+                  <h5>Required product</h5>
+                  <div>
+                    {selectedOfferCode.required_product_name || "Unknown product"}
+                    {selectedOfferCode.required_product_ownership_months_threshold !== null ? (
+                      <div className="mt-1 text-sm text-muted">
+                        Buyers who owned this product for less than{" "}
+                        {selectedOfferCode.required_product_ownership_months_threshold} months receive a 100% discount.
+                        Buyers who owned it for {selectedOfferCode.required_product_ownership_months_threshold} months
+                        or more receive a 50% discount.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </section>
             {selectedOfferCode.products ? (
               <section className="stack">
