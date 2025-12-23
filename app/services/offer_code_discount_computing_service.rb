@@ -11,9 +11,11 @@ class OfferCodeDiscountComputingService
   #   => A[2], B[3], C[2] --> A[2], C[2]
   #   => A[2], C[3]       --> A[2]
 
-  def initialize(code, products)
+  def initialize(code, products, purchaser_email: nil, purchaser_id: nil)
     @code = code
     @products = products
+    @purchaser_email = purchaser_email
+    @purchaser_id = purchaser_id
   end
 
   def process
@@ -28,7 +30,17 @@ class OfferCodeDiscountComputingService
 
       if eligible?(offer_code, purchase_quantity)
         track_usage(offer_code, purchase_quantity)
-        products_data[link.unique_permalink] = { discount: offer_code.discount }
+        discount_hash = offer_code.discount
+        if offer_code.required_product_id.present?
+          discount_hash = discount_hash.merge(
+            ownership_based_discount: true,
+            ownership_discount_amount: offer_code.ownership_based_discount_amount(
+              purchaser_email: purchaser_email,
+              purchaser_id: purchaser_id
+            )
+          )
+        end
+        products_data[link.unique_permalink] = { discount: discount_hash }
         optimistically_apply_to_applicable_cross_sells(products_data, link)
       else
         track_ineligibility(offer_code, purchase_quantity)
@@ -42,7 +54,7 @@ class OfferCodeDiscountComputingService
   end
 
   private
-    attr_reader :code, :products
+    attr_reader :code, :products, :purchaser_email, :purchaser_id
 
     def links
       @_links ||= Link.visible
@@ -72,6 +84,7 @@ class OfferCodeDiscountComputingService
       return false if offer_code.inactive?
       return false unless meets_minimum_purchase_quantity?(offer_code, purchase_quantity)
       return false unless has_sufficient_times_of_use?(offer_code, purchase_quantity)
+      return false unless meets_required_product_ownership?(offer_code)
 
       true
     end
@@ -84,6 +97,18 @@ class OfferCodeDiscountComputingService
     def has_sufficient_times_of_use?(offer_code, purchase_quantity)
       offer_code.max_purchase_count.blank? ||
         remaining_times_of_use(offer_code) >= purchase_quantity
+    end
+
+    def meets_required_product_ownership?(offer_code)
+      return true unless offer_code.required_product_id.present?
+
+      ownership_service = Purchase::OwnershipCheckService.new(
+        product_id: offer_code.required_product_id,
+        email: purchaser_email,
+        user_id: purchaser_id
+      )
+
+      ownership_service.owns_product?
     end
 
     def remaining_times_of_use(offer_code)
@@ -116,10 +141,15 @@ class OfferCodeDiscountComputingService
           @product_level_ineligibilities[:sold_out] = true
         end
       end
+
+      unless meets_required_product_ownership?(offer_code)
+        @product_level_ineligibilities[:required_product_not_owned] = true
+      end
     end
 
     PRODUCT_LEVEL_INELIGIBILITIES_BY_DISPLAY_PRIORITY = [
       :unmet_minimum_purchase_quantity,
+      :required_product_not_owned,
       :insufficient_times_of_use,
       :sold_out,
     ]

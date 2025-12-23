@@ -341,6 +341,7 @@ class Purchase < ApplicationRecord
   before_create :variants_satisfied
   before_create :sold_out
   before_create :validate_offer_code
+  before_create :validate_required_product_ownership
   before_create :price_not_too_low
   before_create :price_not_too_high
   before_create :perceived_price_cents_matches_price_cents
@@ -3522,6 +3523,24 @@ class Purchase < ApplicationRecord
         self.error_code = PurchaseErrorCode::ONLY_FOR_RENT
         errors.add :base, "This product can only be rented."
       end
+    end
+
+    def validate_required_product_ownership
+      return if is_recurring_subscription_charge || is_preorder_charge? || is_test_purchase? || is_updated_original_subscription_purchase || is_commission_completion_purchase
+      return unless link.required_product_id.present?
+
+      ownership_service = Purchase::OwnershipCheckService.new(
+        product_id: link.required_product_id,
+        email: email,
+        user_id: purchaser_id
+      )
+
+      return if ownership_service.owns_product?
+
+      required_product = Link.find_by(id: link.required_product_id)
+      product_name = required_product&.name || "the required product"
+      self.error_code = PurchaseErrorCode::REQUIRED_PRODUCT_NOT_OWNED
+      errors.add :base, "This product is only available to customers who own #{product_name}."
     end
 
     def not_double_charged

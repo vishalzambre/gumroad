@@ -20,7 +20,14 @@ class CartPresenter
       rejectPppDiscount: cart.reject_ppp_discount,
       discountCodes: cart.discount_codes.map do |discount_code|
         products = cart_products.each_with_object({}) { |cart_product, hash| hash[cart_product.product.unique_permalink] = { permalink: cart_product.product.unique_permalink, quantity: cart_product.quantity } }
-        result = OfferCodeDiscountComputingService.new(discount_code["code"], products).process
+        purchaser_email = cart.email.presence || logged_in_user&.email
+        purchaser_id = logged_in_user&.id
+        result = OfferCodeDiscountComputingService.new(
+          discount_code["code"],
+          products,
+          purchaser_email: purchaser_email,
+          purchaser_id: purchaser_id
+        ).process
 
         {
           code: discount_code["code"],

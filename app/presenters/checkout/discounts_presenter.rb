@@ -58,6 +58,9 @@ class Checkout::DiscountsPresenter
       minimum_quantity: offer_code.minimum_quantity,
       duration_in_billing_cycles: offer_code.duration_in_billing_cycles,
       minimum_amount_cents: offer_code.minimum_amount_cents,
+      required_product_id: offer_code.required_product_id.present? ? offer_code.required_product&.external_id : nil,
+      required_product_name: offer_code.required_product&.name,
+      required_product_ownership_months_threshold: offer_code.required_product_ownership_months_threshold,
     }
   end
 end

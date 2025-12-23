@@ -88,6 +88,7 @@ class Link < ApplicationRecord
   DEFAULT_BOOSTED_DISCOVER_FEE_PER_THOUSAND = 300
 
   belongs_to :user, optional: true
+  belongs_to :required_product, class_name: "Link", optional: true
   has_many :prices
   has_many :alive_prices, -> { alive }, class_name: "Price"
   has_one :installment_plan, -> { alive }, class_name: "ProductInstallmentPlan"
@@ -205,6 +206,7 @@ class Link < ApplicationRecord
   validate :commission_price_is_valid, if: -> { native_type == Link::NATIVE_TYPE_COMMISSION }
   validate :one_coffee_per_user, on: :create, if: -> { native_type == Link::NATIVE_TYPE_COFFEE }
   validate :quantity_enabled_state_is_allowed
+  validate :required_product_no_circular_dependency
 
   validates_associated :installment_plan, message: -> (link, _) { link.installment_plan.errors.full_messages.first }
 
@@ -841,6 +843,18 @@ class Link < ApplicationRecord
     bought_purchase&.purchase_info unless bought_purchase&.rental_expired?
   end
 
+  def purchasable_by?(email: nil, user_id: nil)
+    return true unless required_product_id.present?
+
+    ownership_service = Purchase::OwnershipCheckService.new(
+      product_id: required_product_id,
+      email: email,
+      user_id: user_id
+    )
+
+    ownership_service.owns_product?
+  end
+
   def save_duration!(duration)
     self.duration_in_months = duration.present? ? duration.to_i : nil
     save!
@@ -1313,6 +1327,13 @@ class Link < ApplicationRecord
       if quantity_enabled && !can_enable_quantity?
         errors.add(:base, "Customers cannot be allowed to choose a quantity for this product.")
       end
+    end
+
+    def required_product_no_circular_dependency
+      return unless required_product_id.present?
+      return if required_product_id != id
+
+      errors.add(:required_product_id, "cannot be the same as the product itself.")
     end
 
     def custom_permalink_or_is_licensed_changed?

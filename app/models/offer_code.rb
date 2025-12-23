@@ -20,6 +20,7 @@ class OfferCode < ApplicationRecord
 
   has_and_belongs_to_many :products, class_name: "Link", join_table: "offer_codes_products", association_foreign_key: "product_id"
   belongs_to :user
+  belongs_to :required_product, class_name: "Link", optional: true
   has_many :purchases
   has_many :purchases_that_count_towards_offer_code_uses, -> { counts_towards_offer_code_uses }, class_name: "Purchase"
   has_one :upsell
@@ -33,6 +34,7 @@ class OfferCode < ApplicationRecord
   validate :price_validation
   validate :validate_cancellation_discount_uniqueness
   validate :validate_cancellation_discount_product_type
+  validate :validate_required_product_discount_type
 
   before_save :to_mongo
 
@@ -68,10 +70,16 @@ class OfferCode < ApplicationRecord
     amount_cents.present?
   end
 
-  def amount_off(price_cents)
+  def amount_off(price_cents, purchaser_email: nil, purchaser_id: nil)
     return amount_cents if is_cents?
 
-    (price_cents * (amount_percentage / 100.0)).round
+    discount_percentage = if required_product_id.present?
+      ownership_based_discount_amount(purchaser_email: purchaser_email, purchaser_id: purchaser_id)
+    else
+      amount_percentage
+    end
+
+    (price_cents * (discount_percentage / 100.0)).round
   end
 
   def original_price(discounted_price_cents)
@@ -184,6 +192,8 @@ class OfferCode < ApplicationRecord
         minimum_quantity:,
         duration_in_billing_cycles:,
         minimum_amount_cents:,
+        required_product_id: required_product_id.present? ? required_product&.external_id : nil,
+        required_product_ownership_months_threshold:,
       }
     )
   end
@@ -193,6 +203,22 @@ class OfferCode < ApplicationRecord
       price_after_code = price_cents - amount_off(price_cents)
       price_after_code <= 0 || price_after_code >= product.currency["min_price"]
     end
+  end
+
+  def ownership_based_discount_amount(purchaser_email:, purchaser_id:)
+    return amount_percentage unless required_product_id.present?
+
+    ownership_service = Purchase::OwnershipCheckService.new(
+      product_id: required_product_id,
+      email: purchaser_email,
+      user_id: purchaser_id
+    )
+
+    ownership_months = ownership_service.ownership_duration_months
+    return amount_percentage unless ownership_months
+
+    threshold = required_product_ownership_months_threshold || 6
+    ownership_months < threshold ? 100 : 50
   end
 
   def self.human_attribute_name(attr, _)
@@ -286,6 +312,13 @@ class OfferCode < ApplicationRecord
       unless product.is_tiered_membership?
         errors.add(:base, "Cancellation discounts can only be added to memberships")
       end
+    end
+
+    def validate_required_product_discount_type
+      return unless required_product_id.present?
+      return if is_percent?
+
+      errors.add(:base, "Discount codes with required products must use percentage-based discounts.")
     end
 
     def reindex_associated_products(products_to_reindex: applicable_products)

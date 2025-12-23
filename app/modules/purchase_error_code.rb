@@ -49,6 +49,7 @@ module PurchaseErrorCode
   NET_NEGATIVE_SELLER_REVENUE = "net_negative_seller_revenue"
   CARD_DECLINED_FRAUDULENT = "card_declined_fraudulent"
   BRAZILIAN_MERCHANT_ACCOUNT_WITH_AFFILIATE = "brazilian_merchant_account_with_affiliate"
+  REQUIRED_PRODUCT_NOT_OWNED = "required_product_not_owned"
 
   PAYPAL_ERROR_CODES = {
     "2000" => "Do Not Honor",

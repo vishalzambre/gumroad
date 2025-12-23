@@ -31,8 +31,18 @@ class Order::ConfirmService
       end
     end
 
+    purchaser_email = order.purchases.first&.email
+    purchaser_id = order.purchases.first&.purchaser_id
     offer_codes = offer_codes.filter_map do |offer_code, products|
-      response = { code: offer_code, result: OfferCodeDiscountComputingService.new(offer_code, products).process }
+      response = {
+        code: offer_code,
+        result: OfferCodeDiscountComputingService.new(
+          offer_code,
+          products,
+          purchaser_email: purchaser_email,
+          purchaser_id: purchaser_id
+        ).process
+      }
       next if response[:result][:error_code].present?
       { code: response[:code], products: response[:result][:products_data].transform_values { _1[:discount] } }
     end

@@ -91,6 +91,7 @@ class LinkPolicy < ApplicationPolicy
       :require_shipping,
       :is_multiseat_license,
       :community_chat_enabled,
+      :required_product_id,
       refund_policy: [
         :max_refund_period_in_days,
         :title,
