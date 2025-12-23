@@ -53,7 +53,12 @@ class Checkout::DiscountsController < Sellers::BaseController
     authorize [:checkout, OfferCode]
 
     parse_date_times
-    offer_code = current_seller.offer_codes.build(products: current_seller.products.by_external_ids(offer_code_params[:selected_product_ids]), **offer_code_params.except(:selected_product_ids))
+    required_product = offer_code_params[:required_product_id].present? ? current_seller.products.find_by_external_id(offer_code_params[:required_product_id]) : nil
+    offer_code = current_seller.offer_codes.build(
+      products: current_seller.products.by_external_ids(offer_code_params[:selected_product_ids]),
+      required_product: required_product,
+      **offer_code_params.except(:selected_product_ids, :required_product_id)
+    )
 
     if offer_code.save
       pagination, offer_codes = fetch_offer_codes
@@ -69,7 +74,12 @@ class Checkout::DiscountsController < Sellers::BaseController
     authorize [:checkout, offer_code]
 
     parse_date_times
-    if offer_code.update(**offer_code_params.except(:selected_product_ids, :code), products: current_seller.products.by_external_ids(offer_code_params[:selected_product_ids]))
+    required_product = offer_code_params[:required_product_id].present? ? current_seller.products.find_by_external_id(offer_code_params[:required_product_id]) : nil
+    if offer_code.update(
+      **offer_code_params.except(:selected_product_ids, :code, :required_product_id),
+      products: current_seller.products.by_external_ids(offer_code_params[:selected_product_ids]),
+      required_product: required_product
+    )
       pagination, offer_codes = fetch_offer_codes
       presenter = Checkout::DiscountsPresenter.new(pundit_user:)
       render json: { success: true, offer_codes: offer_codes.map { presenter.offer_code_props(_1) }, pagination: }
