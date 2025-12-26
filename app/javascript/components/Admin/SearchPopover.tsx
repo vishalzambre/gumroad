@@ -44,6 +44,7 @@ const SearchPopover = () => {
     affiliate_query: initialQueries.affiliate_query,
     product_title_query: searchParams.get("product_title_query") || "",
     purchase_status: searchParams.get("purchase_status") || "",
+    order_id: searchParams.get("order_id") || "",
     card_type: searchParams.get("card_type") || "",
     transaction_date: searchParams.get("transaction_date") || "",
     last_4: searchParams.get("last_4") || "",
@@ -52,7 +53,7 @@ const SearchPopover = () => {
   });
 
   const resetOtherQueryFields = (activeField?: keyof typeof data | null) => {
-    const queryFields = ["user_query", "purchase_query", "affiliate_query"] as const;
+    const queryFields = ["user_query", "purchase_query", "affiliate_query", "order_id"] as const;
     const cardFields = ["card_type", "transaction_date", "last_4", "expiry_date", "price"] as const;
 
     if (activeField === null) {
@@ -60,7 +61,7 @@ const SearchPopover = () => {
       return;
     }
 
-    if (activeField && ["user_query", "purchase_query", "affiliate_query"].includes(activeField)) {
+    if (activeField && ["user_query", "purchase_query", "affiliate_query", "order_id"].includes(activeField)) {
       cardFields.forEach((field) => setData(field, ""));
       queryFields.forEach((field) => {
         if (field !== activeField) setData(field, "");
@@ -69,7 +70,14 @@ const SearchPopover = () => {
   };
 
   const submit = (endpoint: string, queryParam?: keyof typeof data | null) => {
-    const queryData = { query: queryParam ? String(data[queryParam]) : "" };
+    const queryData: Record<string, string> = {};
+
+    if (queryParam === "order_id") {
+      queryData.order_id = String(data.order_id);
+    } else if (queryParam) {
+      queryData.query = String(data[queryParam]);
+    }
+
     const url = new URL(endpoint, window.location.origin);
     Object.entries(queryData).forEach(([key, value]) => {
       url.searchParams.set(key, value);
@@ -129,6 +137,22 @@ const SearchPopover = () => {
               type="text"
               value={data.purchase_query}
               onChange={(e) => setData("purchase_query", e.target.value)}
+            />
+          </div>
+          <Button color="primary" type="submit">
+            <Icon name="solid-search" />
+          </Button>
+        </form>
+
+        <form onSubmit={(e) => submitForm(e, Routes.admin_search_purchases_path(), "order_id")} className="flex gap-2">
+          <div className="input">
+            <Icon name="solid-key" />
+            <input
+              name="order_id"
+              placeholder="Search by Order ID"
+              type="text"
+              value={data.order_id}
+              onChange={(e) => setData("order_id", e.target.value)}
             />
           </div>
           <Button color="primary" type="submit">

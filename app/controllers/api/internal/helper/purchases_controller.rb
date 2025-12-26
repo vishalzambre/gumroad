@@ -178,7 +178,7 @@ class Api::Internal::Helper::PurchasesController < Api::Internal::Helper::BaseCo
 
   SEARCH_PURCHASE_OPENAPI = {
     summary: "Search purchase",
-    description: "Search purchase by email, seller, license key, or card details. At least one of the parameters is required.",
+    description: "Search purchase by email, seller, license key, order ID, or card details. At least one of the parameters is required.",
     requestBody: {
       required: true,
       content: {
@@ -189,6 +189,7 @@ class Api::Internal::Helper::PurchasesController < Api::Internal::Helper::BaseCo
               email: { type: "string", description: "Email address of the customer/buyer" },
               creator_email: { type: "string", description: "Email address of the creator/seller" },
               license_key: { type: "string", description: "Product license key (4 groups of alphanumeric characters separated by dashes)" },
+              order_id: { type: "string", description: "Order ID (purchase number)" },
               charge_amount: { type: "number", description: "Charge amount in dollars" },
               purchase_date: { type: "string", description: "Purchase date in YYYY-MM-DD format" },
               card_type: { type: "string", description: "Card type" },
@@ -262,6 +263,7 @@ class Api::Internal::Helper::PurchasesController < Api::Internal::Helper::BaseCo
       query: params[:email],
       creator_email: params[:creator_email],
       license_key: params[:license_key],
+      order_id: params[:order_id],
       transaction_date: params[:purchase_date],
       price: params[:charge_amount].present? ? params[:charge_amount].to_f : nil,
       card_type: params[:card_type],

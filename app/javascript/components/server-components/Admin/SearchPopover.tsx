@@ -59,6 +59,20 @@ export const SearchPopover = ({ card_types }: Props) => {
             <Icon name="solid-search" />
           </Button>
         </form>
+        <form action={Routes.admin_search_purchases_path()} method="get" className="input-with-button">
+          <div className="input">
+            <Icon name="solid-key" />
+            <input
+              name="order_id"
+              placeholder="Search by Order ID"
+              type="text"
+              defaultValue={searchParams.get("order_id") || ""}
+            />
+          </div>
+          <Button color="primary" type="submit">
+            <Icon name="solid-search" />
+          </Button>
+        </form>
         <form action={Routes.admin_affiliates_path()} method="get" className="input-with-button">
           <div className="input">
             <Icon name="people-fill" />

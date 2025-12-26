@@ -60,6 +60,30 @@ describe Admin::Search::PurchasesController, type: :controller, inertia: true do
       expect(response).to redirect_to admin_purchase_path(purchase_by_ip.external_id)
     end
 
+    it "searches by order_id" do
+      purchase = create(:purchase)
+      other_purchase = create(:purchase)
+
+      expect_any_instance_of(AdminSearchService).to receive(:search_purchases).with(
+        query: nil,
+        product_title_query: nil,
+        order_id: purchase.external_id_numeric.to_s
+      ).and_call_original
+
+      get :index, params: { order_id: purchase.external_id_numeric.to_s }
+
+      assert_response :success
+      expect(assigns(:purchases)).to include(purchase)
+      expect(assigns(:purchases)).not_to include(other_purchase)
+    end
+
+    it "redirects to purchase page when one purchase is found by order_id" do
+      purchase = create(:purchase)
+
+      get :index, params: { order_id: purchase.external_id_numeric.to_s }
+      expect(response).to redirect_to admin_purchase_path(purchase.external_id)
+    end
+
     it "returns purchases from AdminSearchService" do
       purchase_1 = create(:purchase, email:)
       purchase_2 = create(:gift, gifter_email: email, gifter_purchase: create(:purchase)).gifter_purchase
